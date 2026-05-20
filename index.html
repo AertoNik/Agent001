@@ -1050,19 +1050,25 @@
             const checkVal = val.trim().toLowerCase();
             
             if (checkVal === 'исход') {
-                // Перехватываем функцию сохранения, чтобы не дать терминалу записать старые данные перед рестартом
-                window.saveState = function() {}; 
-                state = {}; 
+                // 1. Глушим ВСЕ фоновые процессы и интервалы (чтобы они не успели записать старые данные)
+                let killId = window.setTimeout(function() {}, 0);
+                while (killId--) {
+                    window.clearTimeout(killId);
+                }
+
+                // 2. Блокируем любую функцию сохранения на уровне ядра браузера
+                Storage.prototype.setItem = function() {}; 
                 
-                // Точечно удаляем ключ и выполняем ковровую очистку всей памяти домена
+                // 3. Выжигаем данные из памяти
                 localStorage.removeItem(STORAGE_KEY);
                 localStorage.clear(); 
                 
                 showNotification("СТИРАНИЕ ДАННЫХ", "Уничтожение памяти...", true);
                 
                 setTimeout(() => {
-                    // Жесткая перезагрузка страницы без учета кэшированных данных
-                    window.location.href = window.location.origin + window.location.pathname;
+                    // 4. Выполняем жесткий редирект на чистый адрес страницы без кэша
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.location.replace(cleanUrl);
                 }, 1500);
             } else {
                 showNotification("ОШИБКА АВТОРИЗАЦИИ", "Неверный код подтверждения. Сброс отменен.", true);
