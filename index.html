@@ -1047,11 +1047,22 @@
         };
 
         function handleReset(val) {
-            if (val.trim().toUpperCase() === 'ИСХОД') {
+            const checkVal = val.trim().toLowerCase();
+            
+            if (checkVal === 'исход') {
+                // Перехватываем функцию сохранения, чтобы не дать терминалу записать старые данные перед рестартом
+                window.saveState = function() {}; 
+                state = {}; 
+                
+                // Точечно удаляем ключ и выполняем ковровую очистку всей памяти домена
                 localStorage.removeItem(STORAGE_KEY);
+                localStorage.clear(); 
+                
                 showNotification("СТИРАНИЕ ДАННЫХ", "Уничтожение памяти...", true);
+                
                 setTimeout(() => {
-                    window.location.reload();
+                    // Жесткая перезагрузка страницы без учета кэшированных данных
+                    window.location.href = window.location.origin + window.location.pathname;
                 }, 1500);
             } else {
                 showNotification("ОШИБКА АВТОРИЗАЦИИ", "Неверный код подтверждения. Сброс отменен.", true);
