@@ -196,6 +196,16 @@
                    </div>
                </div>
 
+               <!-- Отложенные миссии -->
+               <div id="postponed-panel" class="bg-agent-panel border border-agent-warning rounded-lg shadow-lg p-5 hidden transition-all">
+                   <h2 class="text-white font-bold text-sm mb-3 flex items-center border-b border-agent-warning pb-2">
+                       <i class="fa-solid fa-clock-rotate-left text-agent-warning mr-2"></i> ОТЛОЖЕННЫЕ ЗАДАЧИ
+                   </h2>
+                   <div id="postponed-tasks" class="space-y-2">
+                       <!-- Сюда вставятся отложенные задачи -->
+                   </div>
+               </div>
+
                <!-- Планировщик на неделю -->
                <div class="bg-agent-panel border border-agent-border rounded-lg shadow-lg p-5">
                    <h2 class="text-white font-bold text-sm mb-4 flex items-center">
@@ -222,6 +232,7 @@
                                <option value="constitution">Конституция</option>
                                <option value="erudition">Эрудиция</option>
                                <option value="mental">Менталка</option>
+                               <option value="beauty">Красота</option>
                            </select>
                        </div>
                        <div class="flex gap-2">
@@ -334,11 +345,14 @@
                <p id="mission-reward" class="text-center text-xs text-agent-accent mt-2">+50 XP (Конституция)</p>
            </div>
 
-           <div class="flex gap-4">
-               <button onclick="acceptMission()" class="flex-1 bg-agent-accent hover:bg-green-400 text-black font-bold py-3 rounded transition-colors">
+           <div class="flex flex-col sm:flex-row gap-3">
+               <button onclick="acceptMission()" class="flex-1 bg-agent-accent hover:bg-green-400 text-black font-bold py-3 rounded transition-colors text-sm">
                    ВЫПОЛНЕНО
                </button>
-               <button onclick="rejectMission()" class="flex-1 bg-transparent border border-agent-danger text-agent-danger hover:bg-agent-danger hover:text-white font-bold py-3 rounded transition-colors">
+               <button onclick="postponeMission()" class="flex-1 bg-transparent border border-agent-warning text-agent-warning hover:bg-agent-warning hover:text-black font-bold py-3 rounded transition-colors text-sm">
+                   ОТЛОЖИТЬ
+               </button>
+               <button onclick="rejectMission()" class="flex-1 bg-transparent border border-agent-danger text-agent-danger hover:bg-agent-danger hover:text-white font-bold py-3 rounded transition-colors text-sm">
                    ОТКАЗАТЬСЯ
                </button>
            </div>
@@ -392,7 +406,8 @@
            language: { name: 'Язык', icon: 'fa-language', color: 'text-blue-500', bg: 'bg-blue-500' },
            constitution: { name: 'Конституция', icon: 'fa-shield-halved', color: 'text-green-500', bg: 'bg-green-500' },
            erudition: { name: 'Эрудиция', icon: 'fa-book-skull', color: 'text-purple-500', bg: 'bg-purple-500' },
-           mental: { name: 'Ментальное состояние', icon: 'fa-brain', color: 'text-pink-500', bg: 'bg-pink-500' }
+           mental: { name: 'Ментальное состояние', icon: 'fa-brain', color: 'text-pink-500', bg: 'bg-pink-500' },
+           beauty: { name: 'Красота', icon: 'fa-gem', color: 'text-cyan-400', bg: 'bg-cyan-400' }
        };
 
        const DAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -414,7 +429,8 @@
                perfectDaysList: [], 
                currentStreak: 0,
                totalPerfectDays: 0,
-               isRecoveryActive: false 
+               isRecoveryActive: false,
+               postponedMissions: []
            };
 
            for (let key in SKILLS_CONFIG) {
@@ -468,6 +484,7 @@
                        if (!state.skills[key]) state.skills[key] = { level: 1, xp: 0 };
                    }
                    if (!state.perfectDaysList) state.perfectDaysList = [];
+                   if (!state.postponedMissions) state.postponedMissions = [];
                } catch (e) {
                    logSystem("Ошибка чтения локальной памяти. Загружены базовые настройки.", "error");
                }
@@ -640,6 +657,7 @@
            renderPlanner();
            renderTodayTasks();
            renderStats();
+           renderPostponedMissions();
        }
 
        function renderStats() {
@@ -842,7 +860,9 @@
            { text: "Провести 2 минуты в планке.", skill: "endurance", xp: 60 },
            { text: "Выучить 5 новых слов на языке врага.", skill: "language", xp: 40 },
            { text: "Сделать разминку для шеи и спины (Осанка).", skill: "posture", xp: 30 },
-           { text: "Сфокусироваться на дыхании (медитация) 3 минуты.", skill: "mental", xp: 50 }
+           { text: "Сфокусироваться на дыхании (медитация) 3 минуты.", skill: "mental", xp: 50 },
+           { text: "Умыться ледяной водой / сделать уход за лицом.", skill: "beauty", xp: 40 },
+           { text: "Выпрямить спину и постоять у стены 2 минуты.", skill: "posture", xp: 30 }
        ];
 
        function startRandomMissions() {
@@ -883,6 +903,73 @@
                showNotification("ОТКАЗ ПРИНЯТ", "Ментальное состояние ухудшено.", true);
            }
            closeMission();
+       }
+
+       window.postponeMission = () => {
+           if (activeMission) {
+               state.postponedMissions.push({...activeMission, id: Date.now()});
+               saveState();
+               renderPostponedMissions();
+               logSystem("Миссия отложена. Не забудь выполнить.", "warning");
+               showNotification("ЗАДАЧА ОТЛОЖЕНА", "Миссия добавлена в очередь.", false);
+           }
+           closeMission();
+       }
+
+       window.completePostponed = (id) => {
+           const idx = state.postponedMissions.findIndex(m => m.id === id);
+           if (idx > -1) {
+               const m = state.postponedMissions[idx];
+               addXP(m.skill, m.xp);
+               state.postponedMissions.splice(idx, 1);
+               saveState();
+               renderPostponedMissions();
+               logSystem(`Отложенная миссия выполнена. Получено ${m.xp} XP.`, "success");
+           }
+       }
+
+       window.rejectPostponed = (id) => {
+           const idx = state.postponedMissions.findIndex(m => m.id === id);
+           if (idx > -1) {
+               removeXP('mental', 20);
+               state.postponedMissions.splice(idx, 1);
+               saveState();
+               renderPostponedMissions();
+               logSystem("Отказ от отложенной миссии. Урон ментальному состоянию.", "error");
+               showNotification("ОТКАЗ ПРИНЯТ", "Ментальное состояние ухудшено.", true);
+           }
+       }
+
+       function renderPostponedMissions() {
+           const panel = document.getElementById('postponed-panel');
+           const container = document.getElementById('postponed-tasks');
+           
+           if (!state.postponedMissions || state.postponedMissions.length === 0) {
+               panel.classList.add('hidden');
+               container.innerHTML = '';
+               return;
+           }
+           
+           panel.classList.remove('hidden');
+           container.innerHTML = state.postponedMissions.map(m => `
+               <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-black p-3 rounded border border-agent-warning text-white shadow-sm transition-all gap-2">
+                   <div class="flex items-center flex-1">
+                       <i class="fa-solid ${SKILLS_CONFIG[m.skill].icon} ${SKILLS_CONFIG[m.skill].color} w-6 text-center mr-2 text-lg"></i>
+                       <div class="flex flex-col">
+                           <span class="font-bold text-sm leading-tight">${m.text}</span>
+                           <span class="text-[10px] text-agent-accent">+${m.xp} XP (${SKILLS_CONFIG[m.skill].name})</span>
+                       </div>
+                   </div>
+                   <div class="flex gap-2 shrink-0">
+                       <button onclick="completePostponed(${m.id})" class="bg-agent-panel border border-agent-accent text-agent-accent hover:bg-agent-accent hover:text-black px-3 py-1.5 rounded flex items-center justify-center transition-colors text-xs font-bold">
+                           <i class="fa-solid fa-check"></i>
+                       </button>
+                       <button onclick="rejectPostponed(${m.id})" class="bg-agent-panel border border-agent-danger text-agent-danger hover:bg-agent-danger hover:text-white px-3 py-1.5 rounded flex items-center justify-center transition-colors text-xs font-bold">
+                           <i class="fa-solid fa-xmark"></i>
+                       </button>
+                   </div>
+               </div>
+           `).join('');
        }
 
        function closeMission() {
@@ -1075,6 +1162,7 @@
                document.getElementById('task-desc').value = '';
                document.getElementById('today-tasks').innerHTML = '';
                document.getElementById('weekly-overview').innerHTML = '';
+               document.getElementById('postponed-panel').classList.add('hidden');
                
                applyRecoveryVisuals(false);
                
