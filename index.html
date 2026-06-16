@@ -213,8 +213,9 @@
                    </h2>
                   
                    <div class="space-y-3">
-                       <div class="flex gap-2">
-                           <select id="task-day" class="bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none w-1/3">
+                       <!-- Сетка для настройки задачи -->
+                       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                           <select id="task-day" title="День недели" class="bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none">
                                <option value="1">Понедельник</option>
                                <option value="2">Вторник</option>
                                <option value="3">Среда</option>
@@ -223,7 +224,27 @@
                                <option value="6">Суббота</option>
                                <option value="0">Воскресенье</option>
                            </select>
-                           <select id="task-skill" class="bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none w-1/3">
+                           
+                           <select id="task-diff" title="Сложность" class="bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none">
+                               <option value="15">Легко (+15 XP)</option>
+                               <option value="30" selected>Средне (+30 XP)</option>
+                               <option value="50">Тяжело (+50 XP)</option>
+                           </select>
+
+                           <select id="task-skill-1" title="Основной навык" class="bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none">
+                               <option value="strength">Сила</option>
+                               <option value="endurance">Выносливость</option>
+                               <option value="combat">Боевые навыки</option>
+                               <option value="posture">Осанка</option>
+                               <option value="language">Язык</option>
+                               <option value="constitution">Конституция</option>
+                               <option value="erudition">Эрудиция</option>
+                               <option value="mental">Менталка</option>
+                               <option value="beauty">Красота</option>
+                           </select>
+
+                           <select id="task-skill-2" title="Доп. навык (Комбо)" class="bg-black border border-agent-border text-agent-warning text-xs p-2 rounded focus:border-agent-accent outline-none">
+                               <option value="">Без доп. навыка</option>
                                <option value="strength">Сила</option>
                                <option value="endurance">Выносливость</option>
                                <option value="combat">Боевые навыки</option>
@@ -235,9 +256,10 @@
                                <option value="beauty">Красота</option>
                            </select>
                        </div>
-                       <div class="flex gap-2">
-                           <input type="text" id="task-desc" class="flex-1 bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none" placeholder="Описание задания...">
-                           <button onclick="addTask()" class="bg-agent-border hover:bg-agent-text hover:text-black text-white px-4 py-2 rounded text-xs transition-colors">
+                       
+                       <div class="flex gap-2 mt-2">
+                           <input type="text" id="task-desc" class="flex-1 bg-black border border-agent-border text-white text-xs p-2 rounded focus:border-agent-accent outline-none" placeholder="Описание задания (например: Спарринг + Кардио)...">
+                           <button onclick="addTask()" class="bg-agent-border hover:bg-agent-text hover:text-black text-white px-4 py-2 rounded text-xs transition-colors shadow-lg">
                                <i class="fa-solid fa-plus"></i>
                            </button>
                        </div>
@@ -708,14 +730,19 @@
 
        function addTask() {
            const day = document.getElementById('task-day').value;
-           const skill = document.getElementById('task-skill').value;
+           const skill1 = document.getElementById('task-skill-1').value;
+           let skill2 = document.getElementById('task-skill-2').value;
+           const diff = parseInt(document.getElementById('task-diff').value) || 30;
            const desc = document.getElementById('task-desc').value.trim();
           
            if (!desc) return;
+           if (skill1 === skill2) skill2 = ""; // Защита от дублей
           
            state.weeklyPlan[day].push({
                id: Date.now().toString(),
-               skill: skill,
+               skill: skill1,
+               skill2: skill2 || null,
+               diff: diff,
                desc: desc
            });
           
@@ -755,9 +782,16 @@
                <div class="text-xs bg-black p-2 border border-agent-border rounded mb-1">
                    <div class="text-agent-dim font-bold mb-1">${DAYS[dayIndex]}</div>
                    ${tasks.map(t => `
-                       <div class="flex justify-between items-center text-white py-0.5 group">
-                           <span class="truncate"><i class="fa-solid ${SKILLS_CONFIG[t.skill].icon} ${SKILLS_CONFIG[t.skill].color} mr-1"></i> ${t.desc}</span>
-                           <button onclick="deleteTask(${dayIndex}, '${t.id}')" class="text-agent-border hover:text-red-500 ml-2 transition-colors opacity-0 group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+                       <div class="flex justify-between items-start text-white py-1 group border-t border-agent-border/50 mt-1 pt-1 first:border-0 first:mt-0 first:pt-0">
+                           <div class="flex flex-col flex-1 truncate">
+                               <span class="truncate whitespace-normal leading-tight">
+                                   <i class="fa-solid ${SKILLS_CONFIG[t.skill].icon} ${SKILLS_CONFIG[t.skill].color} w-4 text-center"></i>
+                                   ${t.skill2 ? `<i class="fa-solid ${SKILLS_CONFIG[t.skill2].icon} ${SKILLS_CONFIG[t.skill2].color} w-4 text-center opacity-80"></i>` : ''}
+                                   ${t.desc}
+                               </span>
+                               <span class="text-[9px] text-agent-dim mt-0.5 ml-5">Опыт: ${t.diff || 30} XP ${t.skill2 ? '(Комбо)' : ''}</span>
+                           </div>
+                           <button onclick="deleteTask(${dayIndex}, '${t.id}')" class="text-agent-border hover:text-red-500 ml-2 transition-colors opacity-0 group-hover:opacity-100 shrink-0"><i class="fa-solid fa-xmark"></i></button>
                        </div>
                    `).join('')}
                </div>`;
@@ -803,18 +837,31 @@
           
            container.innerHTML = tasks.map(t => {
                const isCompleted = completedIds.includes(t.id);
+               const xp = t.diff || 30; // Обратная совместимость для старых данных
+               const diffLabel = xp <= 15 ? 'Легко' : (xp >= 50 ? 'Тяжело' : 'Средне');
+               const diffColor = xp <= 15 ? 'text-agent-accent' : (xp >= 50 ? 'text-agent-danger' : 'text-agent-warning');
+
                return `
-               <div class="flex items-center justify-between bg-black p-3 rounded border ${isCompleted ? 'border-agent-accent/50 text-agent-dim opacity-70' : 'border-agent-border text-white shadow-sm'} transition-all">
-                   <div class="flex items-center flex-1 truncate">
-                       <i class="fa-solid ${SKILLS_CONFIG[t.skill].icon} ${SKILLS_CONFIG[t.skill].color} w-6 text-center mr-2 text-lg"></i>
-                       <span class="${isCompleted ? 'line-through' : ''} truncate font-bold text-sm">${t.desc}</span>
+               <div class="flex items-center justify-between bg-black p-3 rounded border ${isCompleted ? 'border-agent-accent/50 text-agent-dim opacity-70' : 'border-agent-border text-white shadow-sm'} transition-all gap-3">
+                   
+                   <div class="flex items-center justify-center shrink-0 min-w-[32px] gap-1 bg-agent-panel p-1 rounded border border-agent-border">
+                       <i class="fa-solid ${SKILLS_CONFIG[t.skill].icon} ${SKILLS_CONFIG[t.skill].color} text-sm drop-shadow-[0_0_2px_currentColor]"></i>
+                       ${t.skill2 ? `<i class="fa-solid ${SKILLS_CONFIG[t.skill2].icon} ${SKILLS_CONFIG[t.skill2].color} text-xs opacity-70"></i>` : ''}
                    </div>
+                   
+                   <div class="flex flex-col flex-1 min-w-0">
+                       <span class="${isCompleted ? 'line-through' : ''} truncate font-bold text-sm leading-tight">${t.desc}</span>
+                       <span class="text-[10px] text-agent-dim mt-1">
+                           Сложность: <span class="${diffColor}">${diffLabel}</span> | +${xp} XP ${t.skill2 ? `<span class="text-agent-warning font-bold">(Комбо)</span>` : ''}
+                       </span>
+                   </div>
+                   
                    ${!isCompleted ? `
-                       <button onclick="completeTask('${t.id}', '${t.skill}')" class="ml-3 bg-agent-panel border border-agent-accent text-agent-accent hover:bg-agent-accent hover:text-black w-8 h-8 rounded flex items-center justify-center transition-colors">
+                       <button onclick="completeTask('${t.id}')" class="shrink-0 ml-1 bg-agent-panel border border-agent-accent text-agent-accent hover:bg-agent-accent hover:text-black w-8 h-8 rounded flex items-center justify-center transition-colors">
                            <i class="fa-solid fa-check"></i>
                        </button>
                    ` : `
-                       <span class="text-agent-accent ml-3"><i class="fa-solid fa-check-double"></i></span>
+                       <span class="shrink-0 text-agent-accent ml-1"><i class="fa-solid fa-check-double"></i></span>
                    `}
                </div>
                `;
@@ -841,16 +888,33 @@
            }
        }
 
-       function completeTask(taskId, skillKey) {
+       function completeTask(taskId) {
+           const today = new Date().getDay();
            const todayStr = new Date().toDateString();
+           const tasks = state.weeklyPlan[today] || [];
+           const task = tasks.find(t => t.id === taskId);
+
+           if (!task) return;
+
            if (!state.completedTasks[todayStr]) state.completedTasks[todayStr] = [];
           
            if (!state.completedTasks[todayStr].includes(taskId)) {
                state.completedTasks[todayStr].push(taskId);
-               addXP(skillKey, 30);
+               
+               const xp1 = task.diff || 30; // Берем опыт из сложности
+               addXP(task.skill, xp1);
+               let logMsg = `Директива выполнена. +${xp1} XP (${SKILLS_CONFIG[task.skill].name})`;
+               
+               // Бонус за комбо: 50% опыта уходит во второй навык
+               if (task.skill2) {
+                   const xp2 = Math.floor(xp1 / 2);
+                   addXP(task.skill2, xp2);
+                   logMsg += `, +${xp2} XP (${SKILLS_CONFIG[task.skill2].name})`;
+               }
+
                saveState();
                renderTodayTasks();
-               logSystem(`Директива выполнена. +30 XP (${SKILLS_CONFIG[skillKey].name})`, "success");
+               logSystem(logMsg, "success");
            }
        }
 
